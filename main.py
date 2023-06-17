@@ -34,6 +34,7 @@ class Data:
 
         # set init values
         self.groups_ratings = {}
+        self.groups_feedback_sigma = {}
         self.best_data = None
         self.deviation = 100
         self.removed_items = []
@@ -57,16 +58,29 @@ class Data:
 
     def _update_groups_rating(self):
         """
-        Пересчитывает рейтинг текущих групп.
+        Пересчитывает рейтинг текущих групп и
+        статистику по количеству отзывов для каждой группы (среднее и максимальное отклонение)
         :return:
         """
 
         for group in range(self.groups_number):
             group_items = [item for item in self.data if item['group'] == group]
+
+            # средний рейтинг группы
             numerator = sum(
                 float(item[RATING_STRING]) * int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
             denominator = sum(int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
             self.groups_ratings[group] = numerator / denominator if denominator != 0 else 0
+
+            # статистика по количеству отзывов
+            group_average_feedback_count = denominator / len(group_items)
+            group_feedback_sigma = 0
+            for item in group_items:
+                feedback_difference = abs(item[FEEDBACKS_STRING] - group_average_feedback_count)
+                if group_feedback_sigma < feedback_difference:
+                    group_feedback_sigma = feedback_difference
+            self.groups_feedback_sigma[group] = {'average_feedback_count':group_average_feedback_count,
+                                                 'maximum_feedback_sigma': group_feedback_sigma}
 
     def _update_deviation(self):
         """

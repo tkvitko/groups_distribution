@@ -100,7 +100,8 @@ class Data:
         :return:
         """
 
-        data_sorted = sorted(self.data, key=lambda d: d[RATING_STRING], reverse=True)
+        data_filtered = list(filter(lambda d: d[RATING_STRING] != 0, self.data))
+        data_sorted = sorted(data_filtered, key=lambda d: d[RATING_STRING], reverse=True)
         items_with_bad_rating_count = len(self.data) * PERCENTAGE_TO_FIND_THE_WORSE_ELEMENT // 100 + 1
         the_worse_items = data_sorted[-items_with_bad_rating_count:]
         try:

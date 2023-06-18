@@ -5,18 +5,22 @@ from time import sleep
 
 import pandas as pd
 
-MAX_TRIES = 10000
-PERCENTAGE_TO_FIND_THE_WORSE_ELEMENT = 10
 RATING_STRING = 'Рейтинг'
 FEEDBACKS_STRING = 'Кол-во отзывов у товара'
 
 WORK_DIR = 'data'
-SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')
+SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')    # production
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')   # 66 шт с нулевыми
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')   # 227 шт с нулевыми
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')   # 162 шт без 0
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input4.xlsx')
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input5.xlsx')  # 696 с нулевыми
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input6.xlsx')  # input5 без нулевых
 RESULT_FILENAME = os.path.join(WORK_DIR, 'артикулы.xlsx')
 REMOVED_ITEMS_FILENAME = os.path.join(WORK_DIR, 'исключенные элементы.xlsx')
+
+config = configparser.ConfigParser()
+config.read("config.ini")
 
 
 class NoElements(Exception):
@@ -32,8 +36,6 @@ class Data:
         self.data = items_df.to_dict(orient='records')
 
         # get data from config
-        config = configparser.ConfigParser()
-        config.read("config.ini")
         self.items_per_group = int(config['shuffler']['items_per_group'])
         self.min_rating = float(config['shuffler']['rating'])
         self.groups_number = len(self.data) // self.items_per_group + 1
@@ -75,7 +77,8 @@ class Data:
             # средний рейтинг группы
             if group_items:
                 numerator = sum(
-                    float(item[RATING_STRING]) * int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
+                    float(item[RATING_STRING]) * int(item[FEEDBACKS_STRING]) for item in group_items if
+                    item[RATING_STRING])
                 denominator = sum(int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
                 self.groups_ratings[group] = numerator / denominator if denominator != 0 else 0
             else:
@@ -120,14 +123,15 @@ class Data:
     def remove_the_worst_item(self):
         """
         Метод поиска и удаления самого плохого элемента.
-        - берется 10% (PERCENTAGE_TO_FIND_THE_WORSE_ELEMENT) товаров с самым низким рейтингом,
+        - берется 10% (percentage_to_find_the_worst_element) товаров с самым низким рейтингом,
         - среди них берется 1 с максимальным количеством отзывов.
         :return:
         """
 
+        percentage = int(config['shuffler']['percentage_to_find_the_worst_element'])
         data_filtered = list(filter(lambda d: d[RATING_STRING] != 0, self.data))
         data_sorted = sorted(data_filtered, key=lambda d: d[RATING_STRING], reverse=True)
-        items_with_bad_rating_count = len(data_filtered) * PERCENTAGE_TO_FIND_THE_WORSE_ELEMENT // 100 + 1
+        items_with_bad_rating_count = len(data_filtered) * percentage // 100 + 1
         the_worse_items = data_sorted[-items_with_bad_rating_count:]
         try:
             the_worst_item = max(the_worse_items, key=lambda d: d[FEEDBACKS_STRING])
@@ -154,7 +158,7 @@ if __name__ == '__main__':
 
     while data.has_group_with_rating_less_then_requested:
 
-        for i in range(MAX_TRIES):
+        for i in range(int(config['shuffler']['tries_number'])):
             data.shuffle_and_get_quality()
             if not data.has_group_with_rating_less_then_requested:
                 data.save_data_to_excel()

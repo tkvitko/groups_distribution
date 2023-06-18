@@ -1,4 +1,5 @@
 import configparser
+import os
 import random
 
 import pandas as pd
@@ -8,7 +9,11 @@ PERCENTAGE_TO_FIND_THE_WORSE_ELEMENT = 10
 RATING_STRING = 'Рейтинг'
 FEEDBACKS_STRING = 'Кол-во отзывов у товара'
 
-SOURCE_FILENAME = 'input.xlsx'
+WORK_DIR = 'data'
+SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')
 RESULT_FILENAME = 'артикулы.xlsx'
 REMOVED_ITEMS_FILENAME = 'исключенные элементы.xlsx'
 
@@ -36,7 +41,7 @@ class Data:
         self.groups_ratings = {}
         self.groups_feedback_sigma = {}
         self.best_data = None
-        self.deviation = 100
+        self.has_group_with_rating_less_then_requested = True
         self.removed_items = []
 
     def _set_random_groups(self):
@@ -73,16 +78,16 @@ class Data:
             self.groups_ratings[group] = numerator / denominator if denominator != 0 else 0
 
             # статистика по количеству отзывов
-            group_average_feedback_count = denominator / len(group_items)
-            group_feedback_sigma = 0
-            for item in group_items:
-                feedback_difference = abs(item[FEEDBACKS_STRING] - group_average_feedback_count)
-                if group_feedback_sigma < feedback_difference:
-                    group_feedback_sigma = feedback_difference
-            self.groups_feedback_sigma[group] = {'average_feedback_count':group_average_feedback_count,
-                                                 'maximum_feedback_sigma': group_feedback_sigma}
+            # group_average_feedback_count = denominator / len(group_items)
+            # group_feedback_sigma = 0
+            # for item in group_items:
+            #     feedback_difference = abs(item[FEEDBACKS_STRING] - group_average_feedback_count)
+            #     if group_feedback_sigma < feedback_difference:
+            #         group_feedback_sigma = feedback_difference
+            # self.groups_feedback_sigma[group] = {'average_feedback_count':group_average_feedback_count,
+            #                                      'maximum_feedback_sigma': group_feedback_sigma}
 
-    def _update_deviation(self):
+    def _update_error(self):
         """
         Обновляет данные о текущей ошибке.
         Если рейтинг хотя бы одной группы ниже требуемого, ошибка всё ещё есть.
@@ -91,10 +96,10 @@ class Data:
 
         for group_rating in self.groups_ratings.values():
             if group_rating < self.min_rating:
-                self.deviation = True
+                self.has_group_with_rating_less_then_requested = True
                 break
         else:
-            self.deviation = False
+            self.has_group_with_rating_less_then_requested = False
 
     def shuffle_and_get_quality(self):
         """
@@ -104,7 +109,7 @@ class Data:
 
         self._set_random_groups()
         self._update_groups_rating()
-        self._update_deviation()
+        self._update_error()
 
     def remove_the_worst_item(self):
         """
@@ -141,11 +146,11 @@ class Data:
 if __name__ == '__main__':
     data = Data(source_file=SOURCE_FILENAME)
 
-    while data.deviation:
+    while data.has_group_with_rating_less_then_requested:
 
         for i in range(MAX_TRIES):
             data.shuffle_and_get_quality()
-            if not data.deviation:
+            if not data.has_group_with_rating_less_then_requested:
                 data.save_data_to_excel()
                 print(f'Итоговые рейтинги групп: {data.groups_ratings}')
                 print(f'Количество элементов, оставшихся после удаления плохих: {len(data.data)}')

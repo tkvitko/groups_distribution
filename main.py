@@ -1,6 +1,7 @@
 import configparser
 import os
 import random
+from time import sleep
 
 import pandas as pd
 
@@ -14,8 +15,8 @@ SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')
-RESULT_FILENAME = 'артикулы.xlsx'
-REMOVED_ITEMS_FILENAME = 'исключенные элементы.xlsx'
+RESULT_FILENAME = os.path.join(WORK_DIR, 'артикулы.xlsx')
+REMOVED_ITEMS_FILENAME = os.path.join(WORK_DIR, 'исключенные элементы.xlsx')
 
 
 class NoElements(Exception):
@@ -72,10 +73,14 @@ class Data:
             group_items = [item for item in self.data if item['group'] == group]
 
             # средний рейтинг группы
-            numerator = sum(
-                float(item[RATING_STRING]) * int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
-            denominator = sum(int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
-            self.groups_ratings[group] = numerator / denominator if denominator != 0 else 0
+            if group_items:
+                numerator = sum(
+                    float(item[RATING_STRING]) * int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
+                denominator = sum(int(item[FEEDBACKS_STRING]) for item in group_items if item[RATING_STRING])
+                self.groups_ratings[group] = numerator / denominator if denominator != 0 else 0
+            else:
+                if group in self.groups_ratings.keys():
+                    self.groups_ratings.pop(group)
 
             # статистика по количеству отзывов
             # group_average_feedback_count = denominator / len(group_items)
@@ -93,7 +98,8 @@ class Data:
         Если рейтинг хотя бы одной группы ниже требуемого, ошибка всё ещё есть.
         :return:
         """
-
+        # print(self.groups_ratings)
+        # print(sum(self.groups_ratings.values()) / len(self.groups_ratings))
         for group_rating in self.groups_ratings.values():
             if group_rating < self.min_rating:
                 self.has_group_with_rating_less_then_requested = True
@@ -159,6 +165,7 @@ if __name__ == '__main__':
             try:
                 the_worse_item = data.remove_the_worst_item()
                 print(f'Удален элемент: {the_worse_item}')
+                sleep(1)
             except NoElements:
                 print('Не удалось распределить по требуемому рейтингу, попробуйте понизить рейтинг')
                 break

@@ -9,12 +9,12 @@ RATING_STRING = 'Рейтинг'
 FEEDBACKS_STRING = 'Кол-во отзывов у товара'
 
 WORK_DIR = 'data'
-SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')    # production
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')    # production
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')   # 66 шт с нулевыми
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')   # 227 шт с нулевыми
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')   # 162 шт без 0
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input4.xlsx')
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input5.xlsx')  # 696 с нулевыми
+SOURCE_FILENAME = os.path.join(WORK_DIR, 'input5.xlsx')  # 696 с нулевыми
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input6.xlsx')  # input5 без нулевых
 RESULT_FILENAME = os.path.join(WORK_DIR, 'артикулы.xlsx')
 REMOVED_ITEMS_FILENAME = os.path.join(WORK_DIR, 'исключенные элементы.xlsx')
@@ -30,22 +30,39 @@ class NoElements(Exception):
 class Data:
     def __init__(self, source_file):
 
-        # get data from source Excel
+        # чтение данных из входного Excel
         self.source_file = source_file
         items_df = pd.read_excel(source_file)
-        self.data = items_df.to_dict(orient='records')
+        self.data_with_rating = items_df.to_dict(orient='records')
 
-        # get data from config
-        self.items_per_group = int(config['shuffler']['items_per_group'])
-        self.min_rating = float(config['shuffler']['rating'])
-        self.groups_number = len(self.data) // self.items_per_group + 1
+        # вынос товаров с нулевым рейтингом из расчета
+        # self.data_source = items_df.to_dict(orient='records')
+        # self.data_with_rating = [item for item in self.data_source if item[RATING_STRING]]
+        # self.data_with_null_rating = [item for item in self.data_source if not item[RATING_STRING]]
 
-        # set init values
+        # возврат части товаров с нулевым рейтингом в расчеты
+        # percentage_to_get_nulls_to_data = 30
+        # number_of_nulls_to_get = len(self.data_with_null_rating) * percentage_to_get_nulls_to_data // 100
+        # for item in self.data_with_null_rating[:number_of_nulls_to_get]:
+        #     self.data_with_null_rating.remove(item)
+        #     self.data_with_rating.append(item)
+
+        # чтение параметров из конфига
+        # (!) избыточные вычисления для попытки исключения товаров с нулевым рейтингом из расчетов (отключена выше)
+        self.items_per_group_requested = int(config['shuffler']['items_per_group'])
+        self.min_rating_requested = float(config['shuffler']['rating'])
+        self.groups_number = len(self.data_with_rating) // self.items_per_group_requested + 1
+        self.items_with_rating_per_group = len(self.data_with_rating) // self.groups_number + 1
+
+        # дополнение набора данных коэффициентом вреда
+        for item in self.data_with_rating:
+            item['badness'] = (self.min_rating_requested - int(item[RATING_STRING])) * int(item[FEEDBACKS_STRING])
+
+        # установка начальных значений
         self.groups_ratings = {}
-        self.groups_feedback_sigma = {}
-        self.best_data = None
         self.has_group_with_rating_less_then_requested = True
         self.removed_items = []
+        # self.groups_feedback_sigma = {}
 
     def _set_random_groups(self):
         """
@@ -55,14 +72,14 @@ class Data:
         :return:
         """
 
-        random.shuffle(self.data)
+        random.shuffle(self.data_with_rating)
         start = 0
-        end = self.items_per_group
+        end = self.items_with_rating_per_group
         for group in range(self.groups_number):
-            for item in self.data[start:end]:
+            for item in self.data_with_rating[start:end]:
                 item['group'] = group
-            start += self.items_per_group
-            end += self.items_per_group
+            start += self.items_with_rating_per_group
+            end += self.items_with_rating_per_group
 
     def _update_groups_rating(self):
         """
@@ -72,7 +89,7 @@ class Data:
         """
 
         for group in range(self.groups_number):
-            group_items = [item for item in self.data if item['group'] == group]
+            group_items = [item for item in self.data_with_rating if item['group'] == group]
 
             # средний рейтинг группы
             if group_items:
@@ -104,7 +121,7 @@ class Data:
         # print(self.groups_ratings)
         # print(sum(self.groups_ratings.values()) / len(self.groups_ratings))
         for group_rating in self.groups_ratings.values():
-            if group_rating < self.min_rating:
+            if group_rating < self.min_rating_requested:
                 self.has_group_with_rating_less_then_requested = True
                 break
         else:
@@ -120,26 +137,44 @@ class Data:
         self._update_groups_rating()
         self._update_error()
 
-    def remove_the_worst_item(self):
+    # def remove_the_worst_item(self):
+    #     """
+    #     Метод поиска и удаления самого плохого элемента.
+    #     - берется 10% (percentage_to_find_the_worst_element) товаров с самым низким рейтингом,
+    #     - среди них берется 1 с максимальным количеством отзывов.
+    #     :return:
+    #     """
+    #
+    #     percentage = int(config['shuffler']['percentage_to_find_the_worst_element'])
+    #     data_filtered = list(filter(lambda d: d[RATING_STRING] != 0, self.data_with_rating))
+    #     data_sorted = sorted(data_filtered, key=lambda d: d[RATING_STRING], reverse=True)
+    #     items_with_bad_rating_count = len(data_filtered) * percentage // 100 + 1
+    #     the_worst_items = data_sorted[-items_with_bad_rating_count:]
+    #
+    #     for item in the_worst_items:
+    #         print(item)
+    #
+    #     try:
+    #         the_worst_item = max(the_worst_items, key=lambda d: d[FEEDBACKS_STRING])
+    #         self.data_with_rating.remove(the_worst_item)
+    #         self.removed_items.append(the_worst_item)
+    #         return the_worst_item
+    #     except ValueError:
+    #         raise NoElements
+
+    def remove_the_worst_item(self) -> dict:
         """
         Метод поиска и удаления самого плохого элемента.
-        - берется 10% (percentage_to_find_the_worst_element) товаров с самым низким рейтингом,
-        - среди них берется 1 с максимальным количеством отзывов.
-        :return:
+        Самым плохим элементом считается тот, у которого самое большое значение по формуле:
+        (запрошенный минимальный рейтинг - рейтинг элемента) * количество отзывов
+        :return: the worst element
         """
 
-        percentage = int(config['shuffler']['percentage_to_find_the_worst_element'])
-        data_filtered = list(filter(lambda d: d[RATING_STRING] != 0, self.data))
-        data_sorted = sorted(data_filtered, key=lambda d: d[RATING_STRING], reverse=True)
-        items_with_bad_rating_count = len(data_filtered) * percentage // 100 + 1
-        the_worse_items = data_sorted[-items_with_bad_rating_count:]
-        try:
-            the_worst_item = max(the_worse_items, key=lambda d: d[FEEDBACKS_STRING])
-            self.data.remove(the_worst_item)
-            self.removed_items.append(the_worst_item)
-            return the_worst_item
-        except ValueError:
-            raise NoElements
+        data_filtered = list(filter(lambda d: d[RATING_STRING] < 4, self.data_with_rating))
+        the_worst_item = max(data_filtered, key=lambda d: d['badness'])
+        self.data_with_rating.remove(the_worst_item)
+        self.removed_items.append(the_worst_item)
+        return the_worst_item
 
     def save_data_to_excel(self):
         """
@@ -147,7 +182,7 @@ class Data:
         :return:
         """
 
-        items_df = pd.DataFrame.from_dict(self.data)
+        items_df = pd.DataFrame.from_dict(self.data_with_rating)
         removed_df = pd.DataFrame.from_dict(self.removed_items)
         items_df.to_excel(RESULT_FILENAME)
         removed_df.to_excel(REMOVED_ITEMS_FILENAME)
@@ -163,12 +198,12 @@ if __name__ == '__main__':
             if not data.has_group_with_rating_less_then_requested:
                 data.save_data_to_excel()
                 print(f'Итоговые рейтинги групп: {data.groups_ratings}')
-                print(f'Количество элементов, оставшихся после удаления плохих: {len(data.data)}')
+                print(f'Количество элементов, оставшихся после удаления плохих: {len(data.data_with_rating)}')
                 break
         else:
             try:
-                the_worse_item = data.remove_the_worst_item()
-                print(f'Удален элемент: {the_worse_item}')
+                the_worst_item = data.remove_the_worst_item()
+                print(f'Удален элемент: {the_worst_item}')
                 sleep(1)
             except NoElements:
                 print('Не удалось распределить по требуемому рейтингу, попробуйте понизить рейтинг')

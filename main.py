@@ -8,10 +8,10 @@ RATING_STRING = 'Рейтинг'
 FEEDBACKS_STRING = 'Кол-во отзывов у товара'
 
 WORK_DIR = 'data'
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')    # production
+SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')    # production
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')   # 66 шт с нулевыми
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')   # 227 шт с нулевыми
-SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')   # 162 шт без 0
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')   # 162 шт без 0
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input4.xlsx')
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input5.xlsx')  # 696 с нулевыми
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input6.xlsx')  # input5 без нулевых

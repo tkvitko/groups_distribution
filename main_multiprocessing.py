@@ -52,6 +52,8 @@ if __name__ == '__main__':
         for name in (RESULT_FILENAME.split('/')[-1], REMOVED_ITEMS_FILENAME.split('/')[-1]):
             if name in file and best_number not in file:
                 os.remove(os.path.join(WORK_DIR, file))
+                print(f'{file} removed')
 
     os.remove(TEMP_FILE)
+    print(f'{TEMP_FILE} removed')
 

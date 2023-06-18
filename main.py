@@ -1,7 +1,6 @@
 import configparser
 import os
 import random
-from time import sleep
 
 import pandas as pd
 
@@ -12,12 +11,12 @@ WORK_DIR = 'data'
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')    # production
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')   # 66 шт с нулевыми
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')   # 227 шт с нулевыми
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')   # 162 шт без 0
+SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')   # 162 шт без 0
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input4.xlsx')
-SOURCE_FILENAME = os.path.join(WORK_DIR, 'input5.xlsx')  # 696 с нулевыми
+# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input5.xlsx')  # 696 с нулевыми
 # SOURCE_FILENAME = os.path.join(WORK_DIR, 'input6.xlsx')  # input5 без нулевых
-RESULT_FILENAME = os.path.join(WORK_DIR, 'артикулы.xlsx')
-REMOVED_ITEMS_FILENAME = os.path.join(WORK_DIR, 'исключенные элементы.xlsx')
+RESULT_FILENAME = os.path.join(WORK_DIR, 'result')
+REMOVED_ITEMS_FILENAME = os.path.join(WORK_DIR, 'deleted')
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -33,7 +32,7 @@ class Data:
         # чтение данных из входного Excel
         self.source_file = source_file
         items_df = pd.read_excel(source_file)
-        self.data_with_rating = items_df.to_dict(orient='records')
+        self.data = items_df.to_dict(orient='records')
 
         # вынос товаров с нулевым рейтингом из расчета
         # self.data_source = items_df.to_dict(orient='records')
@@ -51,11 +50,11 @@ class Data:
         # (!) избыточные вычисления для попытки исключения товаров с нулевым рейтингом из расчетов (отключена выше)
         self.items_per_group_requested = int(config['shuffler']['items_per_group'])
         self.min_rating_requested = float(config['shuffler']['rating'])
-        self.groups_number = len(self.data_with_rating) // self.items_per_group_requested + 1
-        self.items_with_rating_per_group = len(self.data_with_rating) // self.groups_number + 1
+        self.groups_number = len(self.data) // self.items_per_group_requested + 1
+        self.items_with_rating_per_group = len(self.data) // self.groups_number + 1
 
         # дополнение набора данных коэффициентом вреда
-        for item in self.data_with_rating:
+        for item in self.data:
             item['badness'] = (self.min_rating_requested - int(item[RATING_STRING])) * int(item[FEEDBACKS_STRING])
 
         # установка начальных значений
@@ -72,11 +71,11 @@ class Data:
         :return:
         """
 
-        random.shuffle(self.data_with_rating)
+        random.shuffle(self.data)
         start = 0
         end = self.items_with_rating_per_group
         for group in range(self.groups_number):
-            for item in self.data_with_rating[start:end]:
+            for item in self.data[start:end]:
                 item['group'] = group
             start += self.items_with_rating_per_group
             end += self.items_with_rating_per_group
@@ -89,7 +88,7 @@ class Data:
         """
 
         for group in range(self.groups_number):
-            group_items = [item for item in self.data_with_rating if item['group'] == group]
+            group_items = [item for item in self.data if item['group'] == group]
 
             # средний рейтинг группы
             if group_items:
@@ -102,15 +101,23 @@ class Data:
                 if group in self.groups_ratings.keys():
                     self.groups_ratings.pop(group)
 
-            # статистика по количеству отзывов
-            # group_average_feedback_count = denominator / len(group_items)
-            # group_feedback_sigma = 0
-            # for item in group_items:
-            #     feedback_difference = abs(item[FEEDBACKS_STRING] - group_average_feedback_count)
-            #     if group_feedback_sigma < feedback_difference:
-            #         group_feedback_sigma = feedback_difference
-            # self.groups_feedback_sigma[group] = {'average_feedback_count':group_average_feedback_count,
-            #                                      'maximum_feedback_sigma': group_feedback_sigma}
+    def get_max_feedback_count_deviation(self):
+        # статистика по количеству отзывов
+
+        summ_deviation = 0
+
+        for group in self.groups_ratings.keys():
+            group_items = [item for item in self.data if item['group'] == group and item[RATING_STRING]]
+            denominator = sum(int(item[FEEDBACKS_STRING]) for item in group_items)
+            group_average_feedback_count = denominator / len(group_items)
+            group_max_feedback_deviation = 0
+            for item in group_items:
+                feedback_deviation = abs(int(item[FEEDBACKS_STRING]) - group_average_feedback_count)
+                if group_max_feedback_deviation < feedback_deviation:
+                    group_max_feedback_deviation = feedback_deviation
+            summ_deviation += group_max_feedback_deviation
+
+        return summ_deviation / len(self.groups_ratings)
 
     def _update_error(self):
         """
@@ -170,25 +177,26 @@ class Data:
         :return: the worst element
         """
 
-        data_filtered = list(filter(lambda d: d[RATING_STRING] < 4, self.data_with_rating))
+        data_filtered = list(filter(lambda d: d[RATING_STRING] < 4, self.data))
         the_worst_item = max(data_filtered, key=lambda d: d['badness'])
-        self.data_with_rating.remove(the_worst_item)
+        self.data.remove(the_worst_item)
         self.removed_items.append(the_worst_item)
         return the_worst_item
 
-    def save_data_to_excel(self):
+    def save_data_to_excel(self, number: str|int):
         """
         Сохранение артикулов и исключенных элементов в Excel-файлы.
         :return:
         """
 
-        items_df = pd.DataFrame.from_dict(self.data_with_rating)
+        items_df = pd.DataFrame.from_dict(self.data)
         removed_df = pd.DataFrame.from_dict(self.removed_items)
-        items_df.to_excel(RESULT_FILENAME)
-        removed_df.to_excel(REMOVED_ITEMS_FILENAME)
+        items_df.to_excel(f'{RESULT_FILENAME}{number}.xlsx')
+        removed_df.to_excel(f'{REMOVED_ITEMS_FILENAME}{number}.xlsx')
 
 
 if __name__ == '__main__':
+
     data = Data(source_file=SOURCE_FILENAME)
 
     while data.has_group_with_rating_less_then_requested:
@@ -196,15 +204,12 @@ if __name__ == '__main__':
         for i in range(int(config['shuffler']['tries_number'])):
             data.shuffle_and_get_quality()
             if not data.has_group_with_rating_less_then_requested:
-                data.save_data_to_excel()
+                data.save_data_to_excel(number='')
                 print(f'Итоговые рейтинги групп: {data.groups_ratings}')
-                print(f'Количество элементов, оставшихся после удаления плохих: {len(data.data_with_rating)}')
+                print(f'Количество элементов, оставшихся после удаления плохих: {len(data.data)}')
+                deviation = data.get_max_feedback_count_deviation()
+                print(f'Максимальное отклонение количества отзывов от среднего по группе: {deviation}')
                 break
         else:
-            try:
-                the_worst_item = data.remove_the_worst_item()
-                print(f'Удален элемент: {the_worst_item}')
-                sleep(1)
-            except NoElements:
-                print('Не удалось распределить по требуемому рейтингу, попробуйте понизить рейтинг')
-                break
+            the_worst_item = data.remove_the_worst_item()
+            print(f'Удален элемент: {the_worst_item}')

@@ -183,7 +183,7 @@ class Data:
         self.removed_items.append(the_worst_item)
         return the_worst_item
 
-    def save_data_to_excel(self, number: str|int):
+    def save_data_to_excel(self, input_file: str, number: str|int):
         """
         Сохранение артикулов и исключенных элементов в Excel-файлы.
         :return:
@@ -191,8 +191,8 @@ class Data:
 
         items_df = pd.DataFrame.from_dict(self.data)
         removed_df = pd.DataFrame.from_dict(self.removed_items)
-        items_df.to_excel(f'{RESULT_FILENAME}{number}.xlsx')
-        removed_df.to_excel(f'{REMOVED_ITEMS_FILENAME}{number}.xlsx')
+        items_df.to_excel(os.path.join(WORK_DIR, f'{input_file}_result{number}.xlsx'))
+        removed_df.to_excel(os.path.join(WORK_DIR, f'{input_file}_deleted{number}.xlsx'))
 
 
 if __name__ == '__main__':

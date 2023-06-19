@@ -8,15 +8,7 @@ RATING_STRING = 'Рейтинг'
 FEEDBACKS_STRING = 'Кол-во отзывов у товара'
 
 WORK_DIR = 'data'
-SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')    # production
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input1.xlsx')   # 66 шт с нулевыми
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input2.xlsx')   # 227 шт с нулевыми
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input3.xlsx')   # 162 шт без 0
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input4.xlsx')
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input5.xlsx')  # 696 с нулевыми
-# SOURCE_FILENAME = os.path.join(WORK_DIR, 'input6.xlsx')  # input5 без нулевых
-RESULT_FILENAME = os.path.join(WORK_DIR, 'result')
-REMOVED_ITEMS_FILENAME = os.path.join(WORK_DIR, 'deleted')
+SOURCE_FILENAME = os.path.join(WORK_DIR, 'input.xlsx')
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -204,7 +196,7 @@ if __name__ == '__main__':
         for i in range(int(config['shuffler']['tries_number'])):
             data.shuffle_and_get_quality()
             if not data.has_group_with_rating_less_then_requested:
-                data.save_data_to_excel(number='')
+                data.save_data_to_excel(input_file='input.xlsx', number='')
                 print(f'Итоговые рейтинги групп: {data.groups_ratings}')
                 print(f'Количество элементов, оставшихся после удаления плохих: {len(data.data)}')
                 deviation = data.get_max_feedback_count_deviation()

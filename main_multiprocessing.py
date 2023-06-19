@@ -2,7 +2,7 @@ import concurrent.futures
 
 from main import *
 
-MAX_WORKERS = 2
+MAX_WORKERS = 8
 INPUT_FOLDER = os.path.join(WORK_DIR, 'input')
 DONE_FOLDER = os.path.join(WORK_DIR, 'done')
 TEMP_FILE = 'processes_cache'

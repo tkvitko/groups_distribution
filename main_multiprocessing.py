@@ -66,7 +66,7 @@ def multi_job(input_file: str):
                     min_deviation = deviation
                     best_number = number
 
-        # os.remove(TEMP_FILE)
+        os.remove(TEMP_FILE)
         # print(f'removed: {TEMP_FILE}')
 
         # удаление всех результатов, кроме лучшего

@@ -169,8 +169,9 @@ class Data:
         :return: the worst element
         """
 
-        data_filtered = list(filter(lambda d: d[RATING_STRING] < 4, self.data))
-        the_worst_item = max(data_filtered, key=lambda d: d['badness'])
+        # data_filtered = list(filter(lambda d: d[RATING_STRING] < 4, self.data))
+        # the_worst_item = max(data_filtered, key=lambda d: d['badness'])
+        the_worst_item = max(self.data, key=lambda d: d['badness'])
         self.data.remove(the_worst_item)
         self.removed_items.append(the_worst_item)
         return the_worst_item

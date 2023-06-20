@@ -24,6 +24,7 @@ class Data:
         # чтение данных из входного Excel
         self.source_file = source_file
         items_df = pd.read_excel(source_file)
+        items_df = items_df.fillna(0)
         self.data = items_df.to_dict(orient='records')
 
         # вынос товаров с нулевым рейтингом из расчета
@@ -47,7 +48,7 @@ class Data:
 
         # дополнение набора данных коэффициентом вреда
         for item in self.data:
-            item['badness'] = (self.min_rating_requested - int(item[RATING_STRING])) * int(item[FEEDBACKS_STRING])
+            item['badness'] = (self.min_rating_requested - float(item[RATING_STRING])) * int(item[FEEDBACKS_STRING])
 
         # установка начальных значений
         self.groups_ratings = {}
@@ -169,12 +170,15 @@ class Data:
         :return: the worst element
         """
 
-        # data_filtered = list(filter(lambda d: d[RATING_STRING] < 4, self.data))
-        # the_worst_item = max(data_filtered, key=lambda d: d['badness'])
-        the_worst_item = max(self.data, key=lambda d: d['badness'])
-        self.data.remove(the_worst_item)
-        self.removed_items.append(the_worst_item)
-        return the_worst_item
+        data_filtered = list(filter(lambda d: d[RATING_STRING] != 0, self.data))
+        try:
+            the_worst_item = max(data_filtered, key=lambda d: d['badness'])
+            # the_worst_item = max(self.data, key=lambda d: d['badness'])
+            self.data.remove(the_worst_item)
+            self.removed_items.append(the_worst_item)
+            return the_worst_item
+        except ValueError:
+            raise NoElements
 
     def save_data_to_excel(self, input_file: str, number: str|int):
         """

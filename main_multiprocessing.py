@@ -6,6 +6,7 @@ MAX_WORKERS = 8
 INPUT_FOLDER = os.path.join(WORK_DIR, 'input')
 DONE_FOLDER = os.path.join(WORK_DIR, 'done')
 TEMP_FILE = 'processes_cache'
+ERROR_FILE = 'errors.txt'
 
 
 def job(input_file: str, job_number: int):
@@ -26,9 +27,14 @@ def job(input_file: str, job_number: int):
                 deviation = data.get_max_feedback_count_deviation()
                 with open(TEMP_FILE, 'a', encoding='utf-8') as f:
                     f.write(f'{job_number}:{deviation}\n')
-                break
+                return True
         else:
-            data.remove_the_worst_item()
+            try:
+                data.remove_the_worst_item()
+            except NoElements:
+                with open(ERROR_FILE, 'a', encoding='utf-8') as f:
+                    f.write(f'{input_file}\n')
+                    return False
 
 
 def multi_job(input_file: str):
@@ -40,38 +46,40 @@ def multi_job(input_file: str):
     with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures_dict = {executor.submit(job, input_file, i): i for i in range(MAX_WORKERS)}
         for future in concurrent.futures.as_completed(futures_dict):
-            future.result()
+            has_result = future.result()
 
-    # чтение результатов работы
-    with open(TEMP_FILE, encoding='utf-8') as f:
-        results = f.readlines()
+    if has_result:
 
-    # поиск лучшего результата
-    min_deviation = 100
-    best_number = None
-    for result in results:
-        print(result)
-        number, deviation = result.split(":")
-        deviation = float(deviation)
-        if min_deviation > deviation:
-            min_deviation = deviation
-            best_number = number
+        # чтение результатов работы
+        with open(TEMP_FILE, encoding='utf-8') as f:
+            results = f.readlines()
 
-    os.remove(TEMP_FILE)
-    print(f'removed: {TEMP_FILE}')
+        # поиск лучшего результата
+        min_deviation = 100
+        best_number = None
+        for result in results:
+            print(result.strip())
+            number, deviation = result.split(":")
+            deviation = float(deviation)
+            if min_deviation > deviation:
+                min_deviation = deviation
+                best_number = number
 
-    # удаление всех результатов, кроме лучшего
-    os.chdir(WORK_DIR)
-    for file in os.listdir('.'):
-        if input_file in file:
-            if best_number not in file:
-                os.remove(file)
-                print(f'removed: {file}')
-            else:
-                os.rename(file, file.replace(best_number, ''))
-                print(f'renamed: {file}')
+        os.remove(TEMP_FILE)
+        # print(f'removed: {TEMP_FILE}')
 
-    os.chdir('..')
+        # удаление всех результатов, кроме лучшего
+        os.chdir(WORK_DIR)
+        for file in os.listdir('.'):
+            if input_file in file:
+                if best_number not in file:
+                    os.remove(file)
+                    # print(f'removed: {file}')
+                else:
+                    os.rename(file, file.replace(best_number, ''))
+                    # print(f'renamed: {file}')
+
+        os.chdir('..')
 
 
 def read_input_files():
@@ -86,6 +94,7 @@ def read_input_files():
 if __name__ == '__main__':
 
     for file in read_input_files():
+        print(f'start {file}')
         multi_job(input_file=file)
 
         # перенос файла-исходника из input в done

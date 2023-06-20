@@ -59,13 +59,14 @@ def multi_job(input_file: str):
         best_number = None
         for result in results:
             print(result.strip())
-            number, deviation = result.split(":")
-            deviation = float(deviation)
-            if min_deviation > deviation:
-                min_deviation = deviation
-                best_number = number
+            if ':' in result:
+                number, deviation = result.split(":")
+                deviation = float(deviation)
+                if min_deviation > deviation:
+                    min_deviation = deviation
+                    best_number = number
 
-        os.remove(TEMP_FILE)
+        # os.remove(TEMP_FILE)
         # print(f'removed: {TEMP_FILE}')
 
         # удаление всех результатов, кроме лучшего

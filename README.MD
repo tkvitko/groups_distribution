@@ -7,7 +7,7 @@
 - до тех пор, пока распределение не будет получено или товары не закончатся
 
 ## Установка
-- ``pip install -r requirements``
+- ``pip install -r requirements.txt``
 - задать параметры в ``config.ini``
 
 ## Запуск

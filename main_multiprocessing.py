@@ -67,18 +67,15 @@ def multi_job(input_file: str):
                     best_number = number
 
         os.remove(TEMP_FILE)
-        # print(f'removed: {TEMP_FILE}')
 
-        # удаление всех результатов, кроме лучшего
+        # удаление всех результатов кроме лучшего
         os.chdir(WORK_DIR)
         for file in os.listdir('.'):
             if input_file in file:
                 if best_number not in file:
                     os.remove(file)
-                    # print(f'removed: {file}')
                 else:
                     os.rename(file, file.replace(best_number, ''))
-                    # print(f'renamed: {file}')
 
         os.chdir('..')
 
